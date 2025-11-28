@@ -12,7 +12,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
 # ==================== НАСТРОЙКИ ====================
-BOT_TOKEN = "8558881786:AAEs3jN0O_qTo3uifo67-pkKBhaaNnsjivI"  # Вставьте токен вашего бота
+BOT_TOKEN = "8558881786:AAEs3jN0O_qTo3uifo67-pkKBhaaNnsjivI"
 
 # Пароли
 PASSWORDS = {
@@ -23,7 +23,7 @@ PASSWORDS = {
 	"admin": "Admin501322"
 }
 
-# Заглушки для контента (замените на реальный текст)
+# Заглушки для контента
 STORY_TEXT = """
 🎭 **ИСТОРИЯ**
 
@@ -49,19 +49,19 @@ RULES_TEXT = """
 Каждая команда состоит из 4 человек. У каждого участника есть своя роль и специализация.
 
 **Роли:**
-• **Медик 🏥** — может лечить других игроков с помощью аптечки
-• **Взломщик-инженер 🔧** — может открывать запертые двери и использовать мультитул
-• **Оператор-агент 📡** — имеет прямую связь с оператором
-• **Мастер маскировки 🎭** — может маскироваться под террористов
+- **Медик 🏥** — может лечить других игроков с помощью аптечки
+- **Взломщик-инженер 🔧** — может открывать запертые двери и использовать мультитул
+- **Оператор-агент 📡** — имеет прямую связь с оператором
+- **Мастер маскировки 🎭** — может маскироваться под террористов
 
 **Система уровней:**
 За выполнение заданий команда получает очки опыта. Команда решает, кому повысить уровень.
 
 **Правила игры:**
-• Если охранник видит вас — вы выбываете
-• Медик может вылечить выбитого игрока
-• У каждой роли есть 3 уровня с улучшенными способностями
-• Время ограничено — 1 час до взрыва!
+- Если охранник видит вас — вы выбываете
+- Медик может вылечить выбитого игрока
+- У каждой роли есть 3 уровня с улучшенными способностями
+- Время ограничено — 1 час до взрыва!
 """
 
 # Роли и их описания
@@ -104,7 +104,7 @@ ROLES = {
 	}
 }
 
-# Главы (ДОБАВЬТЕ СВОИ ГЛАВЫ ЗДЕСЬ)
+# Главы
 CHAPTERS = [
 	{"id": 1, "name": "Глава 1: Проникновение в здание", "points": 300, "exp": 1,
 	 "description": "Первое проникновение в здание КБТУ. Будьте осторожны!"},
@@ -118,7 +118,7 @@ CHAPTERS = [
 	{"id": 6, "name": "Финал: Эвакуация", "points": 600, "exp": 1, "description": "Последний рывок к спасению!"},
 ]
 
-# Бонусные задания (ДОБАВЬТЕ СВОИ ЗАДАНИЯ ЗДЕСЬ)
+# Бонусные задания
 BONUS_TASKS = [
 	{"id": 1, "name": "Бонус: Секретный код"},
 	{"id": 2, "name": "Бонус: Скрытая комната"},
@@ -127,7 +127,7 @@ BONUS_TASKS = [
 	{"id": 5, "name": "Бонус: Запасная аптечка"},
 ]
 
-GAME_DURATION_MINUTES = 60  # Длительность игры в минутах
+GAME_DURATION_MINUTES = 60
 
 
 # ==================== БАЗА ДАННЫХ ====================
@@ -143,7 +143,6 @@ class Database:
 		conn = self.get_connection ()
 		cursor = conn.cursor ()
 
-		# Таблица пользователей
 		cursor.execute ("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
@@ -159,7 +158,6 @@ class Database:
             )
         """)
 
-		# Таблица команд
 		cursor.execute ("""
             CREATE TABLE IF NOT EXISTS teams (
                 team_name TEXT PRIMARY KEY,
@@ -169,7 +167,6 @@ class Database:
             )
         """)
 
-		# Таблица прогресса по главам
 		cursor.execute ("""
             CREATE TABLE IF NOT EXISTS progress (
                 team_name TEXT,
@@ -179,7 +176,6 @@ class Database:
             )
         """)
 
-		# Таблица бонусов
 		cursor.execute ("""
             CREATE TABLE IF NOT EXISTS bonus_progress (
                 team_name TEXT,
@@ -189,7 +185,6 @@ class Database:
             )
         """)
 
-		# Таблица чатов
 		cursor.execute ("""
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -203,7 +198,6 @@ class Database:
             )
         """)
 
-		# Таблица состояния игры
 		cursor.execute ("""
             CREATE TABLE IF NOT EXISTS game_state (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -226,9 +220,17 @@ db = Database ()
 class RegistrationStates (StatesGroup):
 	choosing_role = State ()
 	entering_password = State ()
+	entering_staff_name = State ()  # Для ввода имени персонала (операторы, охрана и т.д.)
 	entering_team_name = State ()
 	entering_first_name = State ()
 	entering_last_name = State ()
+	# Состояния для ввода данных остальных участников
+	entering_teammate2_first = State ()
+	entering_teammate2_last = State ()
+	entering_teammate3_first = State ()
+	entering_teammate3_last = State ()
+	entering_teammate4_first = State ()
+	entering_teammate4_last = State ()
 
 
 class PreparationStates (StatesGroup):
@@ -238,6 +240,14 @@ class PreparationStates (StatesGroup):
 
 class ChatStates (StatesGroup):
 	waiting_message = State ()
+
+
+class AdminStates (StatesGroup):
+	confirming_stop_game = State ()
+
+
+# Словарь для хранения последних сообщений пользователей (для удаления)
+user_last_messages: Dict[int, int] = {}
 
 
 # ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
@@ -296,7 +306,6 @@ def register_user (user_id, role, **kwargs):
 
 
 def delete_user (user_id):
-	"""Удаляет пользователя из базы данных"""
 	conn = db.get_connection ()
 	cursor = conn.cursor ()
 	cursor.execute ("DELETE FROM users WHERE user_id = ?", (user_id,))
@@ -305,7 +314,6 @@ def delete_user (user_id):
 
 
 def reset_team_roles (team_name):
-	"""Сбрасывает все роли команды"""
 	conn = db.get_connection ()
 	cursor = conn.cursor ()
 	cursor.execute (
@@ -333,7 +341,6 @@ def create_team (team_name):
 		(team_name,)
 	)
 
-	# Инициализируем прогресс и бонусы
 	for chapter in CHAPTERS:
 		cursor.execute (
 			"INSERT OR IGNORE INTO progress (team_name, chapter_id, status) VALUES (?, ?, 'locked')",
@@ -555,7 +562,6 @@ def complete_chapter (team_name, chapter_id):
 		(team_name, chapter_id)
 	)
 
-	# Получаем очки за главу
 	chapter = next ((c for c in CHAPTERS if c["id"] == chapter_id), None)
 	if chapter:
 		cursor.execute (
@@ -595,11 +601,9 @@ def all_ready ():
 	conn = db.get_connection ()
 	cursor = conn.cursor ()
 
-	# Проверяем команды
 	cursor.execute ("SELECT COUNT(*) FROM teams WHERE is_ready = 0")
 	teams_not_ready = cursor.fetchone ()[0]
 
-	# Проверяем операторов
 	cursor.execute ("SELECT COUNT(*) FROM users WHERE role = 'operator' AND is_ready = 0")
 	operators_not_ready = cursor.fetchone ()[0]
 
@@ -645,8 +649,8 @@ def get_available_teams_for_operator ():
 	cursor = conn.cursor ()
 
 	cursor.execute ("""
-        SELECT t.team_name 
-        FROM teams t 
+        SELECT t.team_name
+        FROM teams t
         WHERE t.team_name NOT IN (
             SELECT assigned_team FROM users WHERE role = 'operator' AND assigned_team IS NOT NULL
         )
@@ -654,6 +658,81 @@ def get_available_teams_for_operator ():
 	results = cursor.fetchall ()
 	conn.close ()
 	return [row[0] for row in results]
+
+
+def get_all_staff ():
+	"""Получить всех пользователей кроме игроков (операторы, охрана, гиды, админы)"""
+	conn = db.get_connection ()
+	cursor = conn.cursor ()
+	cursor.execute (
+		"SELECT user_id, role, first_name FROM users WHERE role != 'player' AND user_id > 0"
+	)
+	results = cursor.fetchall ()
+	conn.close ()
+	return results
+
+
+def delete_team (team_name):
+	conn = db.get_connection ()
+	cursor = conn.cursor ()
+
+	# Удаляем всех игроков команды
+	cursor.execute ("DELETE FROM users WHERE team_name = ?", (team_name,))
+	# Удаляем прогресс команды
+	cursor.execute ("DELETE FROM progress WHERE team_name = ?", (team_name,))
+	# Удаляем бонусный прогресс
+	cursor.execute ("DELETE FROM bonus_progress WHERE team_name = ?", (team_name,))
+	# Удаляем сообщения
+	cursor.execute ("DELETE FROM messages WHERE team_name = ?", (team_name,))
+	# Удаляем команду
+	cursor.execute ("DELETE FROM teams WHERE team_name = ?", (team_name,))
+	# Сбрасываем assigned_team у операторовезе
+	cursor.execute ("UPDATE users SET assigned_team = NULL WHERE assigned_team = ?", (team_name,))
+
+	conn.commit ()
+	conn.close ()
+
+
+def reset_game_to_registration ():
+	conn = db.get_connection ()
+	cursor = conn.cursor ()
+
+	# Сбрасываем готовность команд
+	cursor.execute ("UPDATE teams SET is_ready = 0")
+	# Сбрасываем готовность операторов
+	cursor.execute ("UPDATE users SET is_ready = 0 WHERE role = 'operator'")
+	# Сбрасываем роли игроков
+	cursor.execute ("UPDATE users SET player_role = NULL, player_level = 1 WHERE role = 'player'")
+
+	conn.commit ()
+	conn.close ()
+
+	set_game_status ("registration")
+
+
+def reset_game_to_preparation ():
+	conn = db.get_connection ()
+	cursor = conn.cursor ()
+
+	# Сбрасываем готовность команд
+	cursor.execute ("UPDATE teams SET is_ready = 0")
+	# Сбрасываем готовность операторов
+	cursor.execute ("UPDATE users SET is_ready = 0 WHERE role = 'operator'")
+	# Воскрешаем всех игроков
+	cursor.execute ("UPDATE users SET is_alive = 1 WHERE role = 'player'")
+	# Сбрасываем очки и опыт
+	cursor.execute ("UPDATE teams SET exp_points = 0, main_points = 0")
+	# Сбрасываем прогресс глав
+	cursor.execute ("UPDATE progress SET status = 'locked'")
+	# Сбрасываем бонусы
+	cursor.execute ("UPDATE bonus_progress SET completed = 0")
+	# Удаляем сообщения
+	cursor.execute ("DELETE FROM messages")
+
+	conn.commit ()
+	conn.close ()
+
+	set_game_status ("preparation")
 
 
 # ==================== КЛАВИАТУРЫ ====================
@@ -714,7 +793,6 @@ def get_role_assignment_keyboard (team_name):
 				InlineKeyboardButton (text = role_data["name"], callback_data = f"assign_role_{role_key}")
 			])
 
-	# Кнопка сброса ролей (если есть назначенные роли)
 	if len (assigned_roles) > 0:
 		keyboard.append ([InlineKeyboardButton (text = "🔄 Сбросить роли", callback_data = "reset_roles")])
 
@@ -730,7 +808,7 @@ def get_player_selection_keyboard (team_name):
 	keyboard = []
 
 	for user_id, first_name, last_name, player_role, level, is_alive in members:
-		if not player_role:  # Только игроки без роли
+		if not player_role:
 			keyboard.append ([
 				InlineKeyboardButton (
 					text = f"{first_name} {last_name}",
@@ -815,7 +893,8 @@ def get_main_menu_keyboard (user_id):
 
 		keyboard.extend ([
 			[InlineKeyboardButton (text = "📊 Таблица", callback_data = "menu_leaderboard")],
-			[InlineKeyboardButton (text = "👥 Игроки", callback_data = "admin_players")]
+			[InlineKeyboardButton (text = "👥 Игроки", callback_data = "admin_players")],
+			[InlineKeyboardButton (text = "⏹️ Остановить игру", callback_data = "admin_stop_game")]
 		])
 
 	return InlineKeyboardMarkup (inline_keyboard = keyboard) if keyboard else None
@@ -874,7 +953,7 @@ def get_upgrade_keyboard (team_name):
 	members = get_team_members (team_name)
 	team_data = get_team_data (team_name)
 
-	if not team_data or team_data[1] == 0:  # Нет опыта
+	if not team_data or team_data[1] == 0:
 		return InlineKeyboardMarkup (inline_keyboard = [
 			[InlineKeyboardButton (text = "◀️ Назад", callback_data = "back_to_menu")]
 		])
@@ -960,14 +1039,12 @@ async def reset_registration_callback (callback: CallbackQuery):
 		await callback.answer ("Вы не зарегистрированы!")
 		return
 
-	# Проверяем статус игры
 	game_status = get_game_status ()[0]
 
 	if game_status != "registration":
 		await callback.answer ("❌ Нельзя сбросить регистрацию после начала подготовки!", show_alert = True)
 		return
 
-	# Удаляем пользователя
 	delete_user (user_id)
 
 	await callback.answer ("🔄 Регистрация сброшена!")
@@ -1000,18 +1077,38 @@ async def password_entered (message: Message, state: FSMContext):
 	correct_password = PASSWORDS.get (role)
 
 	if password == correct_password:
-		register_user (message.from_user.id, role)
-		await message.answer (
-			f"✅ Регистрация успешна! Вы зарегистрированы как {role}.",
-			reply_markup = get_start_keyboard (message.from_user.id)
-		)
-		await state.clear ()
+		await message.answer ("Введите ваше имя:")
+		await state.set_state (RegistrationStates.entering_staff_name)
 	else:
 		await message.answer (
 			"❌ Неправильный пароль. Доступ запрещён.",
 			reply_markup = get_role_selection_keyboard ()
 		)
 		await state.set_state (RegistrationStates.choosing_role)
+
+
+@router.message (RegistrationStates.entering_staff_name)
+async def staff_name_entered (message: Message, state: FSMContext):
+	data = await state.get_data ()
+	role = data["role"]
+	staff_name = message.text.strip ()
+
+	register_user (message.from_user.id, role, first_name = staff_name)
+
+	role_names = {
+		"operator": "Оператор",
+		"guide": "Гид",
+		"guard": "Охрана",
+		"super_guard": "Супер Охрана",
+		"admin": "Админ"
+	}
+	role_display = role_names.get (role, role)
+
+	await message.answer (
+		f"✅ Регистрация успешна!\n\nВы зарегистрированы как: {role_display}\nИмя: {staff_name}",
+		reply_markup = get_start_keyboard (message.from_user.id)
+	)
+	await state.clear ()
 
 
 @router.message (RegistrationStates.entering_team_name)
@@ -1036,22 +1133,98 @@ async def first_name_entered (message: Message, state: FSMContext):
 @router.message (RegistrationStates.entering_last_name)
 async def last_name_entered (message: Message, state: FSMContext):
 	last_name = message.text.strip ()
+	await state.update_data (last_name = last_name)
+
+	await message.answer (
+		"👥 Теперь введите данные остальных участников команды.\n\n"
+		"**Участник 2** - Введите имя:"
+	)
+	await state.set_state (RegistrationStates.entering_teammate2_first)
+
+
+@router.message (RegistrationStates.entering_teammate2_first)
+async def teammate2_first_entered (message: Message, state: FSMContext):
+	await state.update_data (teammate2_first = message.text.strip ())
+	await message.answer ("**Участник 2** - Введите фамилию:")
+	await state.set_state (RegistrationStates.entering_teammate2_last)
+
+
+@router.message (RegistrationStates.entering_teammate2_last)
+async def teammate2_last_entered (message: Message, state: FSMContext):
+	await state.update_data (teammate2_last = message.text.strip ())
+	await message.answer ("**Участник 3** - Введите имя:")
+	await state.set_state (RegistrationStates.entering_teammate3_first)
+
+
+@router.message (RegistrationStates.entering_teammate3_first)
+async def teammate3_first_entered (message: Message, state: FSMContext):
+	await state.update_data (teammate3_first = message.text.strip ())
+	await message.answer ("**Участник 3** - Введите фамилию:")
+	await state.set_state (RegistrationStates.entering_teammate3_last)
+
+
+@router.message (RegistrationStates.entering_teammate3_last)
+async def teammate3_last_entered (message: Message, state: FSMContext):
+	await state.update_data (teammate3_last = message.text.strip ())
+	await message.answer ("**Участник 4** - Введите имя:")
+	await state.set_state (RegistrationStates.entering_teammate4_first)
+
+
+@router.message (RegistrationStates.entering_teammate4_first)
+async def teammate4_first_entered (message: Message, state: FSMContext):
+	await state.update_data (teammate4_first = message.text.strip ())
+	await message.answer ("**Участник 4** - Введите фамилию:")
+	await state.set_state (RegistrationStates.entering_teammate4_last)
+
+
+@router.message (RegistrationStates.entering_teammate4_last)
+async def teammate4_last_entered (message: Message, state: FSMContext):
+	teammate4_last = message.text.strip ()
 	data = await state.get_data ()
 
+	team_name = data["team_name"]
+
+	# Регистрируем капитана (первый участник с user_id)
 	register_user (
 		message.from_user.id,
 		"player",
-		team_name = data["team_name"],
+		team_name = team_name,
 		first_name = data["first_name"],
-		last_name = last_name
+		last_name = data["last_name"]
 	)
 
-	await message.answer (
-		f"✅ Регистрация успешна!\n\n"
-		f"Команда: {data['team_name']}\n"
-		f"Имя: {data['first_name']} {last_name}",
-		reply_markup = get_start_keyboard (message.from_user.id)
-	)
+	# Регистрируем остальных участников (без user_id - генерируем уникальные отрицательные id)
+	conn = db.get_connection ()
+	cursor = conn.cursor ()
+
+	# Генерируем уникальные ID для остальных участников
+	import time
+	base_id = -int (time.time () * 1000)
+
+	teammates = [
+		(base_id - 1, data["teammate2_first"], data["teammate2_last"]),
+		(base_id - 2, data["teammate3_first"], data["teammate3_last"]),
+		(base_id - 3, data["teammate4_first"], teammate4_last)
+	]
+
+	for fake_id, first, last in teammates:
+		cursor.execute (
+			"INSERT INTO users (user_id, role, team_name, first_name, last_name) VALUES (?, 'player', ?, ?, ?)",
+			(fake_id, team_name, first, last)
+		)
+
+	conn.commit ()
+	conn.close ()
+
+	# Формируем сообщение с составом команды
+	text = f"✅ Регистрация команды завершена!\n\n"
+	text += f"**Команда: {team_name}**\n\n"
+	text += f"1. {data['first_name']} {data['last_name']} (капитан)\n"
+	text += f"2. {data['teammate2_first']} {data['teammate2_last']}\n"
+	text += f"3. {data['teammate3_first']} {data['teammate3_last']}\n"
+	text += f"4. {data['teammate4_first']} {teammate4_last}"
+
+	await message.answer (text, reply_markup = get_start_keyboard (message.from_user.id))
 	await state.clear ()
 
 
@@ -1068,17 +1241,39 @@ async def start_game_callback (callback: CallbackQuery):
 	role = user_data[1]
 	game_status = get_game_status ()[0]
 
-	# Для админа - проверка готовности всех
+	# Для админа
 	if role == "admin":
 		if game_status == "registration":
 			teams, operators = get_ready_status ()
 
-			text = "📋 **Статус готовности:**\n\n**Команды:**\n"
+			text = "📋 Статус регистрации:\n\nКоманды:\n"
+			for team_name, is_ready in teams:
+				text += f"• {team_name}\n"
+
+			text += f"\nОператоры: {len (operators)}\n"
+
+			keyboard = [
+				[InlineKeyboardButton (text = "🚀 Начать подготовку", callback_data = "admin_start_prep")]
+			]
+			if teams:
+				keyboard.append ([InlineKeyboardButton (text = "🗑️ Удалить команду", callback_data = "admin_delete_teams")])
+
+			# Кнопка удаления персонала
+			staff = get_all_staff ()
+			if staff:
+				keyboard.append ([InlineKeyboardButton (text = "👤 Удалить пользователя", callback_data = "admin_delete_users")])
+
+			await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard))
+
+		elif game_status == "preparation":
+			teams, operators = get_ready_status ()
+
+			text = "📋 Статус готовности:\n\nКоманды:\n"
 			for team_name, is_ready in teams:
 				status = "✅" if is_ready else "⏳"
 				text += f"{status} {team_name}\n"
 
-			text += "\n**Операторы:**\n"
+			text += "\nОператоры:\n"
 			for op_id, assigned, is_ready in operators:
 				status = "✅" if is_ready else "⏳"
 				team = assigned if assigned else "не выбрана"
@@ -1087,14 +1282,9 @@ async def start_game_callback (callback: CallbackQuery):
 			keyboard = []
 			if all_ready ():
 				keyboard.append ([InlineKeyboardButton (text = "🚀 Начать игру", callback_data = "admin_start")])
+			keyboard.append ([InlineKeyboardButton (text = "◀️ Отменить подготовку", callback_data = "admin_cancel_prep")])
 
-			await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard),
-			                                  parse_mode = "Markdown")
-
-		elif game_status == "preparation":
-			await callback.message.edit_text (
-				"⏳ Игроки готовятся...\n\nОжидание готовности всех команд и операторов."
-			)
+			await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard))
 
 		elif game_status == "playing":
 			await callback.message.edit_text (
@@ -1102,7 +1292,7 @@ async def start_game_callback (callback: CallbackQuery):
 				reply_markup = get_main_menu_keyboard (user_id)
 			)
 
-	# Для операторов - выбор команды
+	# Для операторов
 	elif role == "operator":
 		if game_status == "registration":
 			await callback.message.edit_text ("⏳ Ожидание начала подготовки...")
@@ -1123,9 +1313,8 @@ async def start_game_callback (callback: CallbackQuery):
 					[InlineKeyboardButton (text = "✅ Готов", callback_data = "operator_ready")]
 				])
 				await callback.message.edit_text (
-					f"Вы курируете команду: **{assigned}**\n\nНажмите готов, когда будете готовы.",
-					reply_markup = keyboard,
-					parse_mode = "Markdown"
+					f"Вы курируете команду: {assigned}\n\nНажмите готов, когда будете готовы.",
+					reply_markup = keyboard
 				)
 
 		elif game_status == "playing":
@@ -1151,27 +1340,49 @@ async def start_game_callback (callback: CallbackQuery):
 
 		elif game_status == "preparation":
 			await callback.message.edit_text (
-				"🎯 **ПОДГОТОВКА К МИССИИ**\n\nИзучите информацию и распределите роли!",
-				reply_markup = get_preparation_keyboard (),
-				parse_mode = "Markdown"
+				"🎯 ПОДГОТОВКА К МИССИИ\n\nИзучите информацию и распределите роли!",
+				reply_markup = get_preparation_keyboard ()
 			)
 
 		elif game_status == "playing":
 			team_name = user_data[2]
 			members = get_team_members (team_name)
 
-			text = f"🎮 **Команда: {team_name}**\n\n**Состав:**\n"
+			text = f"🎮 Команда: {team_name}\n\nСостав:\n"
 			for uid, fname, lname, prole, lvl, alive in members:
 				if prole:
 					role_data = ROLES[prole]
-					status = "✅" if alive else "~~💀~~"
+					status = "✅" if alive else "💀"
 					text += f"{status} {role_data['emoji']} {fname} {lname} (Ур.{lvl})\n"
 
 			await callback.message.edit_text (
 				text,
-				reply_markup = get_main_menu_keyboard (user_id),
-				parse_mode = "Markdown"
+				reply_markup = get_main_menu_keyboard (user_id)
 			)
+
+
+# ===== АДМИН НАЧИНАЕТ ПОДГОТОВКУ =====
+@router.callback_query (F.data == "admin_start_prep")
+async def admin_start_prep_callback (callback: CallbackQuery):
+	set_game_status ("preparation")
+	await callback.answer ("✅ Подготовка началась!")
+	await callback.message.edit_text ("✅ Этап подготовки запущен!")
+
+	# Уведомляем всех
+	conn = db.get_connection ()
+	cursor = conn.cursor ()
+	cursor.execute ("SELECT user_id FROM users WHERE role IN ('player', 'operator')")
+	users = cursor.fetchall ()
+	conn.close ()
+
+	for user in users:
+		try:
+			await bot.send_message (
+				user[0],
+				"🎯 ПОДГОТОВКА К МИССИИ НАЧАЛАСЬ!\n\nНажмите /start для продолжения."
+			)
+		except:
+			pass
 
 
 # ===== ПОДГОТОВКА =====
@@ -1179,8 +1390,7 @@ async def start_game_callback (callback: CallbackQuery):
 async def prep_story (callback: CallbackQuery):
 	await callback.message.edit_text (
 		STORY_TEXT,
-		reply_markup = get_back_keyboard (),
-		parse_mode = "Markdown"
+		reply_markup = get_back_keyboard ()
 	)
 
 
@@ -1188,8 +1398,7 @@ async def prep_story (callback: CallbackQuery):
 async def prep_rules (callback: CallbackQuery):
 	await callback.message.edit_text (
 		RULES_TEXT,
-		reply_markup = get_back_keyboard (),
-		parse_mode = "Markdown"
+		reply_markup = get_back_keyboard ()
 	)
 
 
@@ -1197,9 +1406,8 @@ async def prep_rules (callback: CallbackQuery):
 async def back_to_prep (callback: CallbackQuery, state: FSMContext):
 	await state.clear ()
 	await callback.message.edit_text (
-		"🎯 **ПОДГОТОВКА К МИССИИ**\n\nИзучите информацию и распределите роли!",
-		reply_markup = get_preparation_keyboard (),
-		parse_mode = "Markdown"
+		"🎯 ПОДГОТОВКА К МИССИИ\n\nИзучите информацию и распределите роли!",
+		reply_markup = get_preparation_keyboard ()
 	)
 
 
@@ -1210,7 +1418,7 @@ async def prep_roles (callback: CallbackQuery, state: FSMContext):
 
 	members = get_team_members (team_name)
 
-	text = "👥 **Распределение ролей**\n\n"
+	text = "👥 Распределение ролей\n\n"
 
 	for uid, fname, lname, prole, lvl, alive in members:
 		if prole:
@@ -1221,8 +1429,7 @@ async def prep_roles (callback: CallbackQuery, state: FSMContext):
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_role_assignment_keyboard (team_name),
-		parse_mode = "Markdown"
+		reply_markup = get_role_assignment_keyboard (team_name)
 	)
 	await state.set_state (PreparationStates.assigning_roles)
 
@@ -1237,13 +1444,12 @@ async def assign_role (callback: CallbackQuery, state: FSMContext):
 
 	role_data = ROLES[role_key]
 
-	text = f"👤 **Выберите игрока для роли:**\n\n{role_data['name']}\n\n"
+	text = f"👤 Выберите игрока для роли:\n\n{role_data['name']}\n\n"
 	text += f"📝 {role_data['levels'][1]}"
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_player_selection_keyboard (team_name),
-		parse_mode = "Markdown"
+		reply_markup = get_player_selection_keyboard (team_name)
 	)
 	await state.set_state (PreparationStates.selecting_player)
 
@@ -1261,10 +1467,9 @@ async def select_player (callback: CallbackQuery, state: FSMContext):
 
 	await callback.answer (f"✅ Роль назначена!")
 
-	# Возвращаемся к выбору ролей
 	members = get_team_members (team_name)
 
-	text = "👥 **Распределение ролей**\n\n"
+	text = "👥 Распределение ролей\n\n"
 
 	for uid, fname, lname, prole, lvl, alive in members:
 		if prole:
@@ -1275,8 +1480,7 @@ async def select_player (callback: CallbackQuery, state: FSMContext):
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_role_assignment_keyboard (team_name),
-		parse_mode = "Markdown"
+		reply_markup = get_role_assignment_keyboard (team_name)
 	)
 	await state.set_state (PreparationStates.assigning_roles)
 
@@ -1288,7 +1492,7 @@ async def back_to_assign (callback: CallbackQuery, state: FSMContext):
 
 	members = get_team_members (team_name)
 
-	text = "👥 **Распределение ролей**\n\n"
+	text = "👥 Распределение ролей\n\n"
 
 	for uid, fname, lname, prole, lvl, alive in members:
 		if prole:
@@ -1299,8 +1503,7 @@ async def back_to_assign (callback: CallbackQuery, state: FSMContext):
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_role_assignment_keyboard (team_name),
-		parse_mode = "Markdown"
+		reply_markup = get_role_assignment_keyboard (team_name)
 	)
 	await state.set_state (PreparationStates.assigning_roles)
 
@@ -1310,18 +1513,15 @@ async def reset_roles_callback (callback: CallbackQuery):
 	user_data = get_user_data (callback.from_user.id)
 	team_name = user_data[2]
 
-	# Сбрасываем роли
 	reset_team_roles (team_name)
 
 	await callback.answer ("🔄 Роли сброшены!")
 
-	# Показываем обновлённое меню распределения
-	text = "👥 **Распределение ролей**\n\nВсе роли сброшены. Выберите роль для назначения:"
+	text = "👥 Распределение ролей\n\nВсе роли сброшены. Выберите роль для назначения:"
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_role_assignment_keyboard (team_name),
-		parse_mode = "Markdown"
+		reply_markup = get_role_assignment_keyboard (team_name)
 	)
 
 
@@ -1329,9 +1529,8 @@ async def reset_roles_callback (callback: CallbackQuery):
 async def roles_done (callback: CallbackQuery, state: FSMContext):
 	await state.clear ()
 	await callback.message.edit_text (
-		"🎯 **ПОДГОТОВКА К МИССИИ**\n\nИзучите информацию и распределите роли!",
-		reply_markup = get_preparation_keyboard (),
-		parse_mode = "Markdown"
+		"🎯 ПОДГОТОВКА К МИССИИ\n\nИзучите информацию и распределите роли!",
+		reply_markup = get_preparation_keyboard ()
 	)
 
 
@@ -1340,7 +1539,6 @@ async def prep_ready (callback: CallbackQuery):
 	user_data = get_user_data (callback.from_user.id)
 	team_name = user_data[2]
 
-	# Проверяем, все ли роли назначены
 	members = get_team_members (team_name)
 	unassigned = [m for m in members if not m[3]]
 
@@ -1351,8 +1549,7 @@ async def prep_ready (callback: CallbackQuery):
 	update_team_ready_status (team_name, True)
 	await callback.answer ("✅ Команда готова!")
 	await callback.message.edit_text (
-		f"✅ Команда **{team_name}** готова к игре!\n\nОжидание других команд...",
-		parse_mode = "Markdown"
+		f"✅ Команда {team_name} готова к игре!\n\nОжидание других команд..."
 	)
 
 
@@ -1369,9 +1566,8 @@ async def operator_select_team (callback: CallbackQuery):
 	])
 
 	await callback.message.edit_text (
-		f"Вы курируете команду: **{team_name}**\n\nНажмите готов, когда будете готовы.",
-		reply_markup = keyboard,
-		parse_mode = "Markdown"
+		f"Вы курируете команду: {team_name}\n\nНажмите готов, когда будете готовы.",
+		reply_markup = keyboard
 	)
 
 
@@ -1389,7 +1585,6 @@ async def admin_start_game (callback: CallbackQuery):
 		await callback.answer ("❌ Не все команды и операторы готовы!", show_alert = True)
 		return
 
-	# Устанавливаем статус "подготовка" → "playing"
 	start_time = datetime.now ()
 	end_time = start_time + timedelta (minutes = GAME_DURATION_MINUTES)
 
@@ -1397,32 +1592,28 @@ async def admin_start_game (callback: CallbackQuery):
 
 	await callback.answer ("🚀 Игра началась!")
 	await callback.message.edit_text (
-		f"🎮 **ИГРА НАЧАЛАСЬ!**\n\n⏱ Время: {GAME_DURATION_MINUTES} минут\n\n"
-		f"Удачи командам!",
-		reply_markup = get_main_menu_keyboard (callback.from_user.id),
-		parse_mode = "Markdown"
+		f"🎮 ИГРА НАЧАЛАСЬ!\n\n⏱ Время: {GAME_DURATION_MINUTES} минут\n\nУдачи командам!",
+		reply_markup = get_main_menu_keyboard (callback.from_user.id)
 	)
 
-
-# Уведомляем всех игроков (можно добавить рассылку)
 
 # ===== ГЛАВНОЕ МЕНЮ - ТАБЛИЦА ЛИДЕРОВ =====
 @router.callback_query (F.data == "menu_leaderboard")
 async def show_leaderboard (callback: CallbackQuery):
 	teams = get_all_teams ()
 
-	text = "🏆 **ТАБЛИЦА ЛИДЕРОВ**\n\n"
+	text = "🏆 ТАБЛИЦА ЛИДЕРОВ\n\n"
 
 	for i, (team_name, exp, points) in enumerate (teams, 1):
 		medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get (i, f"{i}.")
-		text += f"{medal} **{team_name}**\n"
+		text += f"{medal} {team_name}\n"
 		text += f"   💎 Опыт: {exp} | 🏆 Очки: {points}\n\n"
 
 	keyboard = InlineKeyboardMarkup (inline_keyboard = [
 		[InlineKeyboardButton (text = "◀️ Назад", callback_data = "back_to_menu")]
 	])
 
-	await callback.message.edit_text (text, reply_markup = keyboard, parse_mode = "Markdown")
+	await callback.message.edit_text (text, reply_markup = keyboard)
 
 
 # ===== ПЕРСОНАЖИ =====
@@ -1432,9 +1623,8 @@ async def show_characters (callback: CallbackQuery):
 	team_name = user_data[2]
 
 	await callback.message.edit_text (
-		"👥 **Выберите персонажа:**",
-		reply_markup = get_characters_keyboard (team_name),
-		parse_mode = "Markdown"
+		"👥 Выберите персонажа:",
+		reply_markup = get_characters_keyboard (team_name)
 	)
 
 
@@ -1444,7 +1634,6 @@ async def show_character_info (callback: CallbackQuery):
 	user_data = get_user_data (callback.from_user.id)
 	team_name = user_data[2]
 
-	# Находим игрока с этой ролью
 	members = get_team_members (team_name)
 	player_info = next ((m for m in members if m[3] == role_key), None)
 
@@ -1455,14 +1644,13 @@ async def show_character_info (callback: CallbackQuery):
 	uid, fname, lname, prole, lvl, alive = player_info
 	role_data = ROLES[role_key]
 
-	text = f"{role_data['emoji']} **{role_data['name']}**\n\n"
+	text = f"{role_data['emoji']} {role_data['name']}\n\n"
 	text += f"Игрок: {fname} {lname}\n"
 	text += f"Уровень: {lvl}\n\n"
 	text += f"Способность: {role_data['levels'][lvl]}\n"
 
 	keyboard = []
 
-	# Медик может лечить
 	if role_key == "medic" and alive:
 		dead_players = [m for m in members if not m[5]]
 		if dead_players:
@@ -1472,8 +1660,7 @@ async def show_character_info (callback: CallbackQuery):
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard),
-		parse_mode = "Markdown"
+		reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard)
 	)
 
 
@@ -1489,7 +1676,7 @@ async def medic_heal (callback: CallbackQuery):
 		await callback.answer ("Нет выбитых игроков")
 		return
 
-	text = f"💊 **Лечение** (можно вылечить {capacity} чел.)\n\nВыберите игрока:"
+	text = f"💊 Лечение (можно вылечить {capacity} чел.)\n\nВыберите игрока:"
 
 	keyboard = []
 	for uid, fname, lname, prole, lvl, alive in dead_players[:capacity]:
@@ -1503,8 +1690,7 @@ async def medic_heal (callback: CallbackQuery):
 
 	keyboard.append ([InlineKeyboardButton (text = "◀️ Назад", callback_data = "char_medic")])
 
-	await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard),
-	                                  parse_mode = "Markdown")
+	await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard))
 
 
 @router.callback_query (F.data.startswith ("heal_"))
@@ -1514,14 +1700,12 @@ async def heal_player (callback: CallbackQuery):
 
 	await callback.answer ("✅ Игрок вылечен!")
 
-	# Возвращаемся к меню персонажей
 	user_data = get_user_data (callback.from_user.id)
 	team_name = user_data[2]
 
 	await callback.message.edit_text (
-		"👥 **Выберите персонажа:**",
-		reply_markup = get_characters_keyboard (team_name),
-		parse_mode = "Markdown"
+		"👥 Выберите персонажа:",
+		reply_markup = get_characters_keyboard (team_name)
 	)
 
 
@@ -1538,7 +1722,7 @@ async def show_progress (callback: CallbackQuery):
 	progress = get_team_progress (team_name)
 	completed_bonuses = get_completed_bonuses (team_name)
 
-	text = "📈 **ПРОГРЕСС**\n\n**Главы:**\n"
+	text = "📈 ПРОГРЕСС\n\nГлавы:\n"
 
 	for chapter in CHAPTERS:
 		status = progress.get (chapter["id"], "locked")
@@ -1550,7 +1734,7 @@ async def show_progress (callback: CallbackQuery):
 		else:
 			text += f"📍 {chapter['name']}\n"
 
-	text += f"\n**Бонусные задания:** ({len (completed_bonuses)}/{len (BONUS_TASKS)})\n"
+	text += f"\nБонусные задания: ({len (completed_bonuses)}/{len (BONUS_TASKS)})\n"
 
 	for bonus in BONUS_TASKS:
 		if bonus["id"] in completed_bonuses:
@@ -1563,7 +1747,7 @@ async def show_progress (callback: CallbackQuery):
 		[InlineKeyboardButton (text = "◀️ Назад", callback_data = "back_to_menu")]
 	])
 
-	await callback.message.edit_text (text, reply_markup = keyboard, parse_mode = "Markdown")
+	await callback.message.edit_text (text, reply_markup = keyboard)
 
 
 @router.callback_query (F.data == "chapter_info")
@@ -1573,7 +1757,6 @@ async def chapter_info (callback: CallbackQuery):
 
 	progress = get_team_progress (team_name)
 
-	# Находим текущую активную главу
 	current_chapter = None
 	for chapter in CHAPTERS:
 		if progress.get (chapter["id"], "locked") == "completed":
@@ -1582,9 +1765,9 @@ async def chapter_info (callback: CallbackQuery):
 		break
 
 	if not current_chapter:
-		current_chapter = CHAPTERS[-1]  # Последняя глава
+		current_chapter = CHAPTERS[-1]
 
-	text = f"ℹ️ **{current_chapter['name']}**\n\n"
+	text = f"ℹ️ {current_chapter['name']}\n\n"
 	text += f"{current_chapter.get ('description', 'Описание отсутствует.')}\n\n"
 	text += f"🏆 Награда: {current_chapter['points']} очков\n"
 	text += f"💎 Опыт: {current_chapter['exp']}"
@@ -1593,7 +1776,7 @@ async def chapter_info (callback: CallbackQuery):
 		[InlineKeyboardButton (text = "◀️ Назад", callback_data = "menu_progress")]
 	])
 
-	await callback.message.edit_text (text, reply_markup = keyboard, parse_mode = "Markdown")
+	await callback.message.edit_text (text, reply_markup = keyboard)
 
 
 # ===== ПРОКАЧКА =====
@@ -1605,7 +1788,7 @@ async def show_upgrade_menu (callback: CallbackQuery):
 
 	exp = team_data[1] if team_data else 0
 
-	text = f"⬆️ **ПРОКАЧКА ПЕРСОНАЖЕЙ**\n\n💎 Доступно опыта: {exp}\n\n"
+	text = f"⬆️ ПРОКАЧКА ПЕРСОНАЖЕЙ\n\n💎 Доступно опыта: {exp}\n\n"
 
 	if exp == 0:
 		text += "Выполняйте задания, чтобы получить опыт!"
@@ -1616,7 +1799,7 @@ async def show_upgrade_menu (callback: CallbackQuery):
 		text += "Выберите персонажа для прокачки:"
 		keyboard = get_upgrade_keyboard (team_name)
 
-	await callback.message.edit_text (text, reply_markup = keyboard, parse_mode = "Markdown")
+	await callback.message.edit_text (text, reply_markup = keyboard)
 
 
 @router.callback_query (F.data.startswith ("upgrade_"))
@@ -1631,10 +1814,8 @@ async def upgrade_character (callback: CallbackQuery):
 		await callback.answer ("Недостаточно опыта!", show_alert = True)
 		return
 
-	# Прокачиваем
 	upgrade_player (user_id_to_upgrade)
 
-	# Вычитаем опыт
 	conn = db.get_connection ()
 	cursor = conn.cursor ()
 	cursor.execute ("UPDATE teams SET exp_points = exp_points - 1 WHERE team_name = ?", (team_name,))
@@ -1643,11 +1824,10 @@ async def upgrade_character (callback: CallbackQuery):
 
 	await callback.answer ("✅ Персонаж прокачан!")
 
-	# Обновляем меню
 	team_data = get_team_data (team_name)
 	exp = team_data[1]
 
-	text = f"⬆️ **ПРОКАЧКА ПЕРСОНАЖЕЙ**\n\n💎 Доступно опыта: {exp}\n\n"
+	text = f"⬆️ ПРОКАЧКА ПЕРСОНАЖЕЙ\n\n💎 Доступно опыта: {exp}\n\n"
 
 	if exp == 0:
 		text += "Выполняйте задания, чтобы получить опыт!"
@@ -1658,7 +1838,7 @@ async def upgrade_character (callback: CallbackQuery):
 		text += "Выберите персонажа для прокачки:"
 		keyboard = get_upgrade_keyboard (team_name)
 
-	await callback.message.edit_text (text, reply_markup = keyboard, parse_mode = "Markdown")
+	await callback.message.edit_text (text, reply_markup = keyboard)
 
 
 # ===== ЧАТ С ОПЕРАТОРОМ =====
@@ -1668,19 +1848,18 @@ async def open_chat (callback: CallbackQuery, state: FSMContext):
 	role = user_data[1]
 	team_name = get_assigned_team (callback.from_user.id)
 
-	# Отмечаем сообщения как прочитанные
 	mark_messages_read (team_name, role)
 
 	messages = get_chat_messages (team_name)
 
 	if role == "player":
 		remaining = get_remaining_questions (team_name)
-		text = f"📞 **ЧАТ С ОПЕРАТОРОМ**\n\n💬 Осталось вопросов: {remaining}\n\n"
+		text = f"📞 ЧАТ С ОПЕРАТОРОМ\n\n💬 Осталось вопросов: {remaining}\n\n"
 	else:
-		text = f"💬 **ЧАТ С КОМАНДОЙ {team_name}**\n\n"
+		text = f"💬 ЧАТ С КОМАНДОЙ {team_name}\n\n"
 
 	if messages:
-		for sender_type, message, timestamp, is_free in messages[-10:]:  # Последние 10 сообщений
+		for sender_type, message, timestamp, is_free in messages[-10:]:
 			sender = "🎮 Команда" if sender_type == "player" else "👨‍💼 Оператор"
 			free_mark = " 🆓" if is_free else ""
 			text += f"{sender}{free_mark}: {message}\n"
@@ -1700,7 +1879,7 @@ async def open_chat (callback: CallbackQuery, state: FSMContext):
 		InlineKeyboardButton (text = "◀️ Назад", callback_data = "back_to_menu")
 	])
 
-	await callback.message.edit_text (text, reply_markup = keyboard, parse_mode = "Markdown")
+	await callback.message.edit_text (text, reply_markup = keyboard)
 	await state.set_state (ChatStates.waiting_message)
 	await state.update_data (team_name = team_name, role = role)
 
@@ -1718,24 +1897,20 @@ async def receive_chat_message (message: Message, state: FSMContext):
 	role = data["role"]
 	is_free = data.get ("next_is_free", False)
 
-	# Проверяем лимит вопросов для игроков
 	if role == "player" and not is_free:
 		remaining = get_remaining_questions (team_name)
 		if remaining <= 0:
 			await message.answer ("❌ У вас закончились вопросы!")
 			return
 
-	# Добавляем сообщение
 	add_message (team_name, message.from_user.id, role, message.text, is_free)
 
 	await message.answer ("✅ Сообщение отправлено!")
 
-	# Уведомляем получателя
 	conn = db.get_connection ()
 	cursor = conn.cursor ()
 
 	if role == "player":
-		# Уведомляем оператора
 		cursor.execute ("SELECT user_id FROM users WHERE assigned_team = ? AND role = 'operator'", (team_name,))
 		operator = cursor.fetchone ()
 		if operator:
@@ -1747,7 +1922,6 @@ async def receive_chat_message (message: Message, state: FSMContext):
 			except:
 				pass
 	else:
-		# Уведомляем игроков (оператора-агента)
 		cursor.execute ("SELECT user_id FROM users WHERE team_name = ? AND player_role = 'agent'", (team_name,))
 		agent = cursor.fetchone ()
 		if agent:
@@ -1761,19 +1935,17 @@ async def receive_chat_message (message: Message, state: FSMContext):
 
 	conn.close ()
 
-	# Сбрасываем флаг бесплатного вопроса
 	await state.update_data (next_is_free = False)
 
 
 # ===== ГИДЫ - ЗАВЕРШЕНИЕ ГЛАВ =====
 @router.callback_query (F.data == "guide_complete_chapter")
 async def guide_select_chapter (callback: CallbackQuery):
-	text = "✅ **Выберите главу, которую команда прошла:**"
+	text = "✅ Выберите главу, которую команда прошла:"
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_chapter_selection_keyboard (),
-		parse_mode = "Markdown"
+		reply_markup = get_chapter_selection_keyboard ()
 	)
 
 
@@ -1787,12 +1959,11 @@ async def guide_select_team_for_chapter (callback: CallbackQuery, state: FSMCont
 
 	chapter = next ((c for c in CHAPTERS if c["id"] == chapter_id), None)
 
-	text = f"✅ **{chapter['name']}**\n\nВыберите команду:"
+	text = f"✅ {chapter['name']}\n\nВыберите команду:"
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_team_selection_keyboard (team_names),
-		parse_mode = "Markdown"
+		reply_markup = get_team_selection_keyboard (team_names)
 	)
 
 
@@ -1812,14 +1983,12 @@ async def guide_complete_for_team (callback: CallbackQuery, state: FSMContext):
 
 	await callback.answer ("✅ Глава отмечена как выполненная!")
 	await callback.message.edit_text (
-		f"✅ Команда **{team_name}** завершила:\n{chapter['name']}\n\n"
-		f"🏆 +{chapter['points']} очков\n💎 +{chapter['exp']} опыта",
-		parse_mode = "Markdown"
+		f"✅ Команда {team_name} завершила:\n{chapter['name']}\n\n"
+		f"🏆 +{chapter['points']} очков\n💎 +{chapter['exp']} опыта"
 	)
 
 	await state.clear ()
 
-	# Уведомляем команду
 	conn = db.get_connection ()
 	cursor = conn.cursor ()
 	cursor.execute ("SELECT user_id FROM users WHERE team_name = ? AND role = 'player'", (team_name,))
@@ -1843,12 +2012,11 @@ async def guard_select_team_to_kill (callback: CallbackQuery):
 	teams = get_all_teams ()
 	team_names = [t[0] for t in teams]
 
-	text = "💀 **УБИТЬ ИГРОКА**\n\nВыберите команду:"
+	text = "💀 УБИТЬ ИГРОКА\n\nВыберите команду:"
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_team_selection_keyboard (team_names),
-		parse_mode = "Markdown"
+		reply_markup = get_team_selection_keyboard (team_names)
 	)
 
 
@@ -1857,12 +2025,11 @@ async def guard_select_player_to_kill (callback: CallbackQuery, state: FSMContex
 	team_name = callback.data.replace ("select_team_", "")
 	await state.update_data (selected_team = team_name, action = "kill")
 
-	text = f"💀 **Команда: {team_name}**\n\nВыберите игрока:"
+	text = f"💀 Команда: {team_name}\n\nВыберите игрока:"
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_player_list_keyboard (team_name, alive_only = True),
-		parse_mode = "Markdown"
+		reply_markup = get_player_list_keyboard (team_name, alive_only = True)
 	)
 
 
@@ -1877,7 +2044,6 @@ async def guard_execute_action (callback: CallbackQuery, state: FSMContext):
 		kill_player (player_id)
 		await callback.answer ("💀 Игрок убит!")
 
-		# Уведомляем игрока
 		try:
 			await bot.send_message (player_id, "💀 Вас убила охрана! Ждите медика...")
 		except:
@@ -1887,7 +2053,6 @@ async def guard_execute_action (callback: CallbackQuery, state: FSMContext):
 		revive_player (player_id)
 		await callback.answer ("💚 Игрок воскрешён!")
 
-		# Уведомляем игрока
 		try:
 			await bot.send_message (player_id, "💚 Вы воскрешены!")
 		except:
@@ -1908,27 +2073,24 @@ async def guard_select_team_to_revive (callback: CallbackQuery):
 	teams = get_all_teams ()
 	team_names = [t[0] for t in teams]
 
-	text = "💚 **ВОСКРЕСИТЬ ИГРОКА**\n\nВыберите команду:"
+	text = "💚 ВОСКРЕСИТЬ ИГРОКА\n\nВыберите команду:"
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_team_selection_keyboard (team_names),
-		parse_mode = "Markdown"
+		reply_markup = get_team_selection_keyboard (team_names)
 	)
 
 
-# Используем тот же обработчик select_team_, но с состоянием
 @router.callback_query (F.data.startswith ("select_team_"), lambda c: c.message.text.startswith ("💚"))
 async def guard_select_player_to_revive (callback: CallbackQuery, state: FSMContext):
 	team_name = callback.data.replace ("select_team_", "")
 	await state.update_data (selected_team = team_name, action = "revive")
 
-	text = f"💚 **Команда: {team_name}**\n\nВыберите игрока:"
+	text = f"💚 Команда: {team_name}\n\nВыберите игрока:"
 
 	await callback.message.edit_text (
 		text,
-		reply_markup = get_player_list_keyboard (team_name, dead_only = True),
-		parse_mode = "Markdown"
+		reply_markup = get_player_list_keyboard (team_name, dead_only = True)
 	)
 
 
@@ -1937,12 +2099,12 @@ async def guard_select_player_to_revive (callback: CallbackQuery, state: FSMCont
 async def admin_show_all_players (callback: CallbackQuery):
 	teams = get_all_teams ()
 
-	text = "👥 **ВСЕ КОМАНДЫ**\n\n"
+	text = "👥 ВСЕ КОМАНДЫ\n\n"
 
 	for team_name, exp, points in teams:
 		members = get_team_members (team_name)
 
-		text += f"**{team_name}** (🏆 {points} | 💎 {exp})\n"
+		text += f"{team_name} (🏆 {points} | 💎 {exp})\n"
 
 		alive_count = sum (1 for m in members if m[5])
 		text += f"Живых: {alive_count}/{len (members)}\n"
@@ -1958,7 +2120,7 @@ async def admin_show_all_players (callback: CallbackQuery):
 		[InlineKeyboardButton (text = "◀️ Назад", callback_data = "back_to_menu")]
 	])
 
-	await callback.message.edit_text (text, reply_markup = keyboard, parse_mode = "Markdown")
+	await callback.message.edit_text (text, reply_markup = keyboard)
 
 
 # ===== НАЗАД В МЕНЮ =====
@@ -1973,27 +2135,25 @@ async def back_to_main_menu (callback: CallbackQuery, state: FSMContext):
 		team_name = user_data[2]
 		members = get_team_members (team_name)
 
-		text = f"🎮 **Команда: {team_name}**\n\n**Состав:**\n"
+		text = f"🎮 Команда: {team_name}\n\nСостав:\n"
 		for uid, fname, lname, prole, lvl, alive in members:
 			if prole:
 				role_data = ROLES[prole]
-				status = "✅" if alive else "~~💀~~"
+				status = "✅" if alive else "💀"
 				text += f"{status} {role_data['emoji']} {fname} {lname} (Ур.{lvl})\n"
 
 		await callback.message.edit_text (
 			text,
-			reply_markup = get_main_menu_keyboard (callback.from_user.id),
-			parse_mode = "Markdown"
+			reply_markup = get_main_menu_keyboard (callback.from_user.id)
 		)
 
 	elif role == "operator":
 		team_name = get_assigned_team (callback.from_user.id)
-		text = f"👨‍💼 **Оператор команды: {team_name}**"
+		text = f"👨‍💼 Оператор команды: {team_name}"
 
 		await callback.message.edit_text (
 			text,
-			reply_markup = get_main_menu_keyboard (callback.from_user.id),
-			parse_mode = "Markdown"
+			reply_markup = get_main_menu_keyboard (callback.from_user.id)
 		)
 
 	else:
@@ -2003,23 +2163,176 @@ async def back_to_main_menu (callback: CallbackQuery, state: FSMContext):
 		)
 
 
-# ===== АДМИН - КНОПКА ПОДГОТОВКА =====
-@router.message (Command ("preparation"))
-async def admin_start_preparation (message: Message):
-	user_data = get_user_data (message.from_user.id)
+# ===== АДМИН - УДАЛЕНИЕ КОМАНД =====
+@router.callback_query (F.data == "admin_delete_teams")
+async def admin_delete_teams (callback: CallbackQuery):
+	teams = get_all_teams ()
 
-	if not user_data or user_data[1] != "admin":
-		await message.answer ("❌ Эта команда только для админа!")
+	if not teams:
+		await callback.answer ("Нет команд для удаления")
 		return
 
-	set_game_status ("preparation")
+	text = "🗑️ УДАЛЕНИЕ КОМАНДЫ\n\nВыберите команду для удаления:"
 
-	await message.answer ("✅ Этап подготовки начат!\n\nВсе игроки и операторы могут готовиться.")
+	keyboard = []
+	for team_name, exp, points in teams:
+		members = get_team_members (team_name)
+		keyboard.append ([
+			InlineKeyboardButton (
+				text = f"{team_name} ({len (members)} игроков)",
+				callback_data = f"admin_delete_team_{team_name}"
+			)
+		])
 
-	# Уведомляем всех игроков и операторов
+	keyboard.append ([InlineKeyboardButton (text = "◀️ Назад", callback_data = "start_game")])
+
+	await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard))
+
+
+@router.callback_query (F.data.startswith ("admin_delete_team_"))
+async def admin_confirm_delete_team (callback: CallbackQuery):
+	team_name = callback.data.replace ("admin_delete_team_", "")
+
+	delete_team (team_name)
+
+	await callback.answer (f"✅ Команда {team_name} удалена!")
+
+	# Возвращаемся к списку команд
+	teams = get_all_teams ()
+
+	if teams:
+		text = "🗑️ УДАЛЕНИЕ КОМАНДЫ\n\nВыберите команду для удаления:"
+
+		keyboard = []
+		for t_name, exp, points in teams:
+			members = get_team_members (t_name)
+			keyboard.append ([
+				InlineKeyboardButton (
+					text = f"{t_name} ({len (members)} игроков)",
+					callback_data = f"admin_delete_team_{t_name}"
+				)
+			])
+
+		keyboard.append ([InlineKeyboardButton (text = "◀️ Назад", callback_data = "start_game")])
+
+		await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard))
+	else:
+		await callback.message.edit_text (
+			"✅ Все команды удалены!",
+			reply_markup = InlineKeyboardMarkup (inline_keyboard = [
+				[InlineKeyboardButton (text = "◀️ Назад", callback_data = "start_game")]
+			])
+		)
+
+
+# ===== АДМИН - УДАЛЕНИЕ ПОЛЬЗОВАТЕЛЕЙ =====
+@router.callback_query (F.data == "admin_delete_users")
+async def admin_delete_users (callback: CallbackQuery):
+	staff = get_all_staff ()
+
+	if not staff:
+		await callback.answer ("Нет пользователей для удаления")
+		return
+
+	text = "👤 УДАЛЕНИЕ ПОЛЬЗОВАТЕЛЯ\n\nВыберите пользователя для удаления:"
+
+	role_names = {
+		"operator": "Оператор",
+		"guide": "Гид",
+		"guard": "Охрана",
+		"super_guard": "Супер Охрана",
+		"admin": "Админ"
+	}
+
+	keyboard = []
+	for user_id, role, first_name in staff:
+		role_display = role_names.get (role, role)
+		name_display = first_name if first_name else f"ID: {user_id}"
+		keyboard.append ([
+			InlineKeyboardButton (
+				text = f"{name_display} ({role_display})",
+				callback_data = f"admin_delete_user_{user_id}"
+			)
+		])
+
+	keyboard.append ([InlineKeyboardButton (text = "◀️ Назад", callback_data = "start_game")])
+
+	await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard))
+
+
+@router.callback_query (F.data.startswith ("admin_delete_user_"))
+async def admin_confirm_delete_user (callback: CallbackQuery):
+	user_id_to_delete = int (callback.data.replace ("admin_delete_user_", ""))
+
+	# Нельзя удалить себя
+	if user_id_to_delete == callback.from_user.id:
+		await callback.answer ("❌ Нельзя удалить себя!", show_alert = True)
+		return
+
+	# Получаем информацию о пользователе перед удалением
+	user_data = get_user_data (user_id_to_delete)
+	if user_data:
+		user_name = user_data[3] if user_data[3] else f"ID: {user_id_to_delete}"
+	else:
+		user_name = f"ID: {user_id_to_delete}"
+
+	delete_user (user_id_to_delete)
+
+	await callback.answer (f"✅ Пользователь {user_name} удалён!")
+
+	# Возвращаемся к списку пользователей
+	staff = get_all_staff ()
+
+	if staff:
+		text = "👤 УДАЛЕНИЕ ПОЛЬЗОВАТЕЛЯ\n\nВыберите пользователя для удаления:"
+
+		role_names = {
+			"operator": "Оператор",
+			"guide": "Гид",
+			"guard": "Охрана",
+			"super_guard": "Супер Охрана",
+			"admin": "Админ"
+		}
+
+		keyboard = []
+		for uid, role, first_name in staff:
+			role_display = role_names.get (role, role)
+			name_display = first_name if first_name else f"ID: {uid}"
+			keyboard.append ([
+				InlineKeyboardButton (
+					text = f"{name_display} ({role_display})",
+					callback_data = f"admin_delete_user_{uid}"
+				)
+			])
+
+		keyboard.append ([InlineKeyboardButton (text = "◀️ Назад", callback_data = "start_game")])
+
+		await callback.message.edit_text (text, reply_markup = InlineKeyboardMarkup (inline_keyboard = keyboard))
+	else:
+		await callback.message.edit_text (
+			"✅ Все пользователи удалены!",
+			reply_markup = InlineKeyboardMarkup (inline_keyboard = [
+				[InlineKeyboardButton (text = "◀️ Назад", callback_data = "start_game")]
+			])
+		)
+
+
+# ===== АДМИН - ОТМЕНА ПОДГОТОВКИ =====
+@router.callback_query (F.data == "admin_cancel_prep")
+async def admin_cancel_prep (callback: CallbackQuery):
+	reset_game_to_registration ()
+
+	await callback.answer ("✅ Подготовка отменена!")
+	await callback.message.edit_text (
+		"✅ Подготовка отменена!\n\nИгра возвращена на этап регистрации.",
+		reply_markup = InlineKeyboardMarkup (inline_keyboard = [
+			[InlineKeyboardButton (text = "◀️ К статусу", callback_data = "start_game")]
+		])
+	)
+
+	# Уведомляем всех
 	conn = db.get_connection ()
 	cursor = conn.cursor ()
-
 	cursor.execute ("SELECT user_id FROM users WHERE role IN ('player', 'operator')")
 	users = cursor.fetchall ()
 	conn.close ()
@@ -2028,11 +2341,59 @@ async def admin_start_preparation (message: Message):
 		try:
 			await bot.send_message (
 				user[0],
-				"🎯 **ПОДГОТОВКА К МИССИИ НАЧАЛАСЬ!**\n\nНажмите /start для продолжения.",
-				parse_mode = "Markdown"
+				"⚠️ Подготовка отменена!\n\nИгра возвращена на этап регистрации.\nНажмите /start для продолжения."
 			)
 		except:
 			pass
+
+
+# ===== АДМИН - ОСТАНОВКА ИГРЫ =====
+@router.callback_query (F.data == "admin_stop_game")
+async def admin_stop_game (callback: CallbackQuery, state: FSMContext):
+	text = "⚠️ ОСТАНОВКА ИГРЫ\n\n"
+	text += "Вы уверены, что хотите остановить игру?\n\n"
+	text += "Это действие сбросит весь прогресс команд.\n\n"
+	text += "Для подтверждения напишите:\n**Я подтверждаю**"
+
+	keyboard = InlineKeyboardMarkup (inline_keyboard = [
+		[InlineKeyboardButton (text = "❌ Отмена", callback_data = "back_to_menu")]
+	])
+
+	await callback.message.edit_text (text, reply_markup = keyboard)
+	await state.set_state (AdminStates.confirming_stop_game)
+
+
+@router.message (AdminStates.confirming_stop_game)
+async def admin_confirm_stop_game (message: Message, state: FSMContext):
+	if message.text == "Я подтверждаю":
+		reset_game_to_preparation ()
+
+		await message.answer (
+			"✅ Игра остановлена!\n\nИгра возвращена на этап подготовки.",
+			reply_markup = get_start_keyboard (message.from_user.id)
+		)
+
+		await state.clear ()
+
+		# Уведомляем всех
+		conn = db.get_connection ()
+		cursor = conn.cursor ()
+		cursor.execute ("SELECT user_id FROM users WHERE role IN ('player', 'operator', 'guide', 'guard', 'super_guard')")
+		users = cursor.fetchall ()
+		conn.close ()
+
+		for user in users:
+			try:
+				await bot.send_message (
+					user[0],
+					"⚠️ ИГРА ОСТАНОВЛЕНА!\n\nИгра возвращена на этап подготовки.\nНажмите /start для продолжения."
+				)
+			except:
+				pass
+	else:
+		await message.answer (
+			"❌ Неверное подтверждение.\n\nДля остановки игры напишите точно:\n**Я подтверждаю**\n\nИли нажмите кнопку отмены выше."
+		)
 
 
 # ===== ОБРАБОТЧИК НЕАКТИВНЫХ КНОПОК =====
